@@ -20,6 +20,9 @@
 *.pdb
 *.ilk
 
-*/Debug/
+/OpenGL4Viewer/Debug/
 /OpenGL4Viewer/includes/
 /OpenGL4Viewer/lib/
+/OpenGL4Viewer/OpenGL4Viewer/Debug/
+
+*.dll
