@@ -2,7 +2,7 @@
 #define CAMERA_H
 
 #include "GLFW/glfw3.h"
-#include "GLM/glm/glm.hpp"
+#include "glm/glm/glm.hpp"
 
 class Camera
 {
@@ -16,40 +16,45 @@ public:
 		eRight = 0x08
 	};
 
-	Camera(glm::vec3* upVector = nullptr, glm::vec3* initialPosition = nullptr, glm::vec3* initalTarget = nullptr);
-	~Camera(){}; 
+	Camera(GLfloat aspect, glm::vec3* upVector = nullptr, glm::vec3* initialPosition = nullptr, glm::vec3* initalTarget = nullptr);
+	Camera(const glm::mat4& transformMatrix, GLfloat fovy, GLfloat aspect); 
+	virtual ~Camera();
 
-	void move(CameraDirection displacement, GLfloat deltaTime); 
-	void rotate(GLfloat xoffset, GLfloat yoffset, GLboolean constrainPitch = true);
-	void zoom(GLfloat yoffest); 
-	glm::mat4 GetViewMatrix(); 
+	virtual void move(CameraDirection displacement, GLfloat deltaTime); 
+	virtual void rotate(GLdouble xoffset, GLdouble yoffset, GLboolean constrainPitch = true);
+	virtual void zoom(GLdouble yoffest);
+	virtual void saveWorldCoordinates(); 
+	virtual glm::mat4 GetViewMatrix();
 
-	GLfloat getZoomLevel()
+	virtual GLfloat getFovy() const
 	{
-		return m_zoom; 
+		return m_fovy; 
 	}
+
+	virtual GLfloat getAspect() const
+	{
+		return m_aspect;
+	}
+
+	virtual void setFovy(GLfloat fovy) { m_fovy = fovy; }
+	virtual void setAspect(GLfloat aspect) { m_aspect = aspect; }
+
+	virtual glm::mat4 getLocalMatrix() const { return m_transform; }
+	virtual void setLocalMatrix(const glm::mat4& aMatrix) { m_transform = aMatrix; }
+
 protected:
 
-	glm::vec3 m_position; 
-	glm::vec3 m_target; 
 	glm::vec3 m_worldUp; 
+	glm::vec3 m_worldRight; 
 
 	// Cameras axis in world coordinates
-	glm::vec3 m_zNeg; // Front
-	glm::vec3 m_xPos; // Right
-	glm::vec3 m_yPos; // Up
+	glm::mat4 m_transform; 
+	bool responsibleForDelete; 
 
 	GLfloat m_mvtSpeed; 
 	GLfloat m_rotSpeed;
-	GLfloat m_zoom; 
-
-	GLfloat m_yaw;
-	GLfloat m_pitch; 
-
-	
-	void updateVectors(); 
-
-private:
+	GLfloat m_aspect; 
+	GLfloat m_fovy;  
 };
 
 #endif

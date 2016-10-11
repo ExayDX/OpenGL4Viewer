@@ -25,8 +25,8 @@ Scene::~Scene()
 void Scene::createShaderPrograms()
 {
 	// Create Shader programs
-	ShaderProgram* defaultShaderProgram = new ShaderProgram("defaultVS.glsl", "defaultFS.glsl");
-	ShaderProgram* phongShaderProgram = new ShaderProgram("Phong.vs", "Phong.fg");
+	ShaderProgram* defaultShaderProgram = new ShaderProgram("./OpenGL4Viewer/defaultVS.glsl", "./OpenGL4Viewer/defaultFS.glsl");
+	ShaderProgram* phongShaderProgram = new ShaderProgram("./OpenGL4Viewer/Phong.vs", "./OpenGL4Viewer/Phong.fg");
 
 	// Insert ShaderProgram in the list
 	m_shaderPrograms.insert(std::pair<std::string, ShaderProgram*>("default", defaultShaderProgram));

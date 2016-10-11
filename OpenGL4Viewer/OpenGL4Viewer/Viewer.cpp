@@ -240,7 +240,7 @@ Viewer::Viewer()
 	setupViewport(); 
 	glfwSwapInterval(1);
 
-	m_camera = new Camera(&glm::vec3(0.0f, 1.0f, 0.0f), &glm::vec3(0.0f, 0.0f, 10.0f), &glm::vec3(0, 0, 0));
+	m_camera = new Camera(m_width/m_height, &glm::vec3(0.0f, 1.0f, 0.0f), &glm::vec3(0.0f, 0.0f, 10.0f), &glm::vec3(0, 0, 0));
 	m_scene = new Scene();
 }
 
@@ -283,7 +283,7 @@ void Viewer::loop()
 
 		// Coordinate system matrices 
 		glm::mat4 view = m_camera->GetViewMatrix();
-		glm::mat4 projection = glm::perspective(m_camera->getZoomLevel(), m_width / m_height, 0.1f, 100.0f); 
+		glm::mat4 projection = glm::perspective(m_camera->getFovy(), m_width / m_height, 0.1f, 100.0f); 
 
 		m_scene->setViewMatrix(view);
 		m_scene->setProjectionMatrix(projection); 

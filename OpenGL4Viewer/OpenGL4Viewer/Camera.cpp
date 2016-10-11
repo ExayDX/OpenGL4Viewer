@@ -1,38 +1,68 @@
+#define GLM_SWIZZLE
+
 #include "Camera.h"
 #include "glm/glm/gtc/matrix_transform.hpp"
 
-Camera::Camera(glm::vec3* upVector, glm::vec3* initialPosition, glm::vec3* initialTarget)
-	: m_yaw(-90.0f)
-	, m_pitch(0.0f)
-	, m_mvtSpeed(3.0f)
-	, m_rotSpeed(0.25f)
-	, m_zoom(45.0f)
+Camera::Camera(GLfloat aspect, glm::vec3* upVector, glm::vec3* initialPosition, glm::vec3* initialTarget)
+	: m_mvtSpeed(5.0f)
+	, m_rotSpeed(0.001f)
+	, m_fovy(45.0f)
+	, m_aspect(aspect)
+	, responsibleForDelete(true)
 {
 	if (upVector)
 		m_worldUp = *upVector;
 	else
 		m_worldUp = glm::vec3(0, 1, 0);
 
+	glm::vec3 axisX, axisZ, position;
+
 	if (initialPosition)
-		m_position = *initialPosition;
+		position = *initialPosition;
 	else
-		m_position = glm::vec3(0, 0, 0); 
-
+		position = glm::vec3(0, 0, 0);
+	
+	glm::vec3 target(0, 0, 0); 
 	if (initialTarget)
-		m_target = *initialTarget;
-	else
-		m_target = glm::vec3(0, 0, 0);
+		target = *initialTarget;
 
-	m_zNeg = glm::normalize(m_position - m_target);
-	m_xPos = glm::normalize(glm::cross(m_worldUp, m_zNeg));
-	m_yPos = glm::cross(m_zNeg, m_xPos);
+	axisZ = glm::normalize(target - position);
+	assert(std::abs(glm::dot(axisZ, m_worldUp)) != 1 && "WorldUp and Cam's Z are colinear. No possible way to determine Cam's base");
 
-	updateVectors(); 
+	axisX = glm::normalize(glm::cross(m_worldUp, axisZ));
+
+	m_transform[0] = glm::vec4(axisX, 0.0);
+	m_transform[1] = glm::vec4(glm::normalize(glm::cross(axisZ, axisX)), 0.0);
+	m_transform[2] = glm::vec4(axisZ, 0.0);
+	m_transform[3] = glm::vec4(position, 1.0);
+	 
+	//computePitchAndYaw();
+}
+
+Camera::Camera(const glm::mat4& transformMatrix, GLfloat fovy, GLfloat aspect)
+	: m_mvtSpeed(15.0f)
+	, m_rotSpeed(0.001f)
+	, m_fovy(fovy)
+	, m_aspect(aspect)
+	, responsibleForDelete(false)
+{
+	m_transform = transformMatrix;
+	m_worldUp = transformMatrix[1].xyz(); 
+}
+
+Camera::~Camera()
+{
 }
 
 glm::mat4 Camera::GetViewMatrix()
 {
-	return glm::lookAt(m_position, m_position + m_zNeg, m_yPos); 
+	// If inheratage of transform is implemented, change 
+	// m_transform in these calculations for the world transform. 
+	glm::vec3 worldPosition = m_transform[3].xyz(); 
+	glm::vec3 worldCenter = worldPosition + m_transform[2].xyz();
+	glm::vec3 worldUp = m_transform[1].xyz(); 
+
+	return glm::lookAt(worldPosition, worldCenter, worldUp);
 }
 
 void Camera::move(CameraDirection direction, GLfloat deltaTime)
@@ -40,54 +70,46 @@ void Camera::move(CameraDirection direction, GLfloat deltaTime)
 	GLfloat velocity = m_mvtSpeed * deltaTime; 
 
 	if (direction == CameraDirection::eForward)
-		m_position += m_zNeg * velocity; 
+		m_transform[3] += m_transform[2] * velocity;
 	if (direction == CameraDirection::eBackward)
-		m_position -= m_zNeg * velocity; 
+		m_transform[3] -= m_transform[2] * velocity;
 	if (direction == CameraDirection::eLeft)
-		m_position -= m_xPos * velocity; 
+		m_transform[3] += m_transform[0] * velocity;
 	if (direction == CameraDirection::eRight)
-		m_position += m_xPos * velocity; 
+		m_transform[3] -= m_transform[0] * velocity;
 }
 
-void Camera::rotate(GLfloat xoffset, GLfloat yoffset, GLboolean constrainPitch /* = true */)
+void Camera::rotate(GLdouble xoffset, GLdouble yoffset, GLboolean constrainPitch /* = true */)
 {
-	xoffset *= m_rotSpeed; 
-	yoffset *= m_rotSpeed; 
+	float yaw = -(float)(xoffset * m_rotSpeed);
+	float pitch = -(float)(yoffset * m_rotSpeed);
 
-	m_yaw += xoffset;
-	m_pitch += yoffset; 
+	glm::mat4 matrix = m_transform; 
 
-	if (constrainPitch)
-	{
-		if (m_pitch > 89.0f)
-			m_pitch = 89.0f;
-		if (m_pitch < -89.0f)
-			m_pitch = -89.0f;
-	}
+	glm::mat4 yawMat;
+	yawMat = glm::rotate(yawMat, yaw, glm::vec3(0, 1, 0));
 
-	updateVectors(); 
+	glm::vec4 position = matrix[3]; 
+
+	matrix =  yawMat * matrix;
+	matrix[3] = position; 
+	
+	matrix = glm::rotate(matrix, pitch, glm::vec3(1, 0, 0));
+
+	m_transform = matrix;
 }
 
-void Camera::zoom(GLfloat yoffset)
+void Camera::zoom(GLdouble yoffset)
 {
-	if (m_zoom >= 1.0f && m_zoom <= 45.0f)
-		m_zoom -= yoffset; 
-	if (m_zoom <= 1.0f)
-		m_zoom = 1.0f;
-	if (m_zoom >= 45.0f)
-		m_zoom = 45.0f; 
+	if (m_fovy >= 1.0f && m_fovy <= 45.0f)
+		m_fovy -= yoffset; 
+	if (m_fovy <= 1.0f)
+		m_fovy = 1.0f;
+	if (m_fovy >= 45.0f)
+		m_fovy = 45.0f; 
 }
 
-void Camera::updateVectors()
+void Camera::saveWorldCoordinates()
 {
-	// Calculate the new front vector
-	glm::vec3 newZNeg;
-	newZNeg.x = cos(glm::radians(m_yaw)) * cos(glm::radians(m_pitch));
-	newZNeg.y = sin(glm::radians(m_pitch));
-	newZNeg.z = sin(glm::radians(m_yaw)) * cos(glm::radians(m_pitch));
-	m_zNeg = glm::normalize(newZNeg); 
-
-	// Recalculate up and right vectors
-	this->m_xPos = glm::normalize(glm::cross(this->m_zNeg, this->m_worldUp)); 
-	this->m_yPos = glm::normalize(glm::cross(this->m_xPos, this->m_zNeg));
+	m_worldUp = m_transform[1].xyz();
 }
